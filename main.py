@@ -2,14 +2,16 @@ import cv2
 import pygame
 import threading
 import queue
+from pathlib import Path
 from joi_companion.core.speech_handler import SpeechHandler
 from joi_companion.core.vision_processor import VisionProcessor
 from joi_companion.core.personality_engine import PersonalityEngine
 from joi_companion.core.intent_parser import IntentParser
 from joi_companion.core.memory_system import MemorySystem
+from joi_companion.core.ui_manager import UIManager
 
-
-MODEL_PATH = "model/vosk-model-small-en-us-0.15"
+ROOT_DIR = Path(__file__).parent
+MODEL_PATH = str(ROOT_DIR / "model" / "vosk-model-small-en-us-0.15")
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
 
@@ -21,10 +23,9 @@ def speech_worker(handler, text_queue):
 
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-    pygame.display.set_caption("Joi - AI Companion")
+    
+    ui = UIManager(WINDOW_WIDTH, WINDOW_HEIGHT)
     clock = pygame.time.Clock()
-    font = pygame.font.Font(None, 40)
     
     cap = cv2.VideoCapture(0)
     
@@ -40,10 +41,12 @@ def main():
         listen_thread.start()
         
         print("System online. Joi is running.")
-        initial_greeting = personality_engine.get_greeting()
-        speech_handler.speak(initial_greeting)
         
         current_emotion = "NEUTRAL"
+        joi_last_response = personality_engine.get_greeting()
+        user_last_input = ""
+        
+        speech_handler.speak(joi_last_response)
         
         running = True
         while running:
@@ -53,6 +56,7 @@ def main():
 
             try:
                 user_input = text_queue.get_nowait()
+                user_last_input = user_input
                 print(f"> You: {user_input}")
 
                 intent = intent_parser.parse(user_input)
@@ -67,8 +71,6 @@ def main():
                 
                 elif intent["type"] == "EXIT":
                     response = "Goodbye. It was a pleasure."
-                    speech_handler.speak(response)
-                    running = False
                 
                 elif intent["type"] == "CONVERSE":
                     response = personality_engine.generate_response(current_emotion)
@@ -76,11 +78,18 @@ def main():
                 else: 
                     response = "I'm not sure what you mean by that."
                 
-                if response and running:
+                joi_last_response = response
+                
+                if response:
                     print(f"< Joi: {response}")
+                    ui.update_speaking_status(True)
                     speech_handler.speak(response)
+                    ui.update_speaking_status(False)
                     if interaction_to_log:
                         memory.log_interaction(user_input, response, current_emotion, personality_engine.current_mode)
+
+                if intent["type"] == "EXIT":
+                    running = False
 
             except queue.Empty:
                 pass
@@ -91,28 +100,12 @@ def main():
 
             processed_frame, current_emotion = vision_processor.process_frame(frame)
             
-            frame_rgb = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
-            frame_flipped = cv2.flip(frame_rgb, 1)
-            frame_surface = pygame.surfarray.make_surface(frame_flipped.swapaxes(0, 1))
+            ui.draw_background(processed_frame)
+            ui.draw_avatar()
+            ui.draw_ui_text(current_emotion, personality_engine.current_mode, memory.get_interaction_count())
+            ui.draw_dialogue("", joi_last_response)
             
-            screen.blit(frame_surface, (0, 0))
-            
-            ui_y = 20
-            ui_x = 20
-            
-            emotion_text = font.render(f"EMOTION: {current_emotion}", True, (255, 255, 255))
-            screen.blit(emotion_text, (ui_x, ui_y))
-            
-            ui_y += 40
-            mode_text = font.render(f"MODE: {personality_engine.current_mode}", True, (255, 255, 255))
-            screen.blit(mode_text, (ui_x, ui_y))
-            
-            ui_y += 40
-            interaction_count = memory.get_interaction_count()
-            memory_text = font.render(f"MEMORIES: {interaction_count}", True, (255, 255, 255))
-            screen.blit(memory_text, (ui_x, ui_y))
-            
-            pygame.display.flip()
+            ui.update_display()
             clock.tick(30)
 
     except KeyboardInterrupt:
