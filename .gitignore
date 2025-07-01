@@ -3,3 +3,4 @@ __pycache__/
 model/
 *.pyc
 .vscode/
+.json
