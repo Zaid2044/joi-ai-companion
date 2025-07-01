@@ -3,4 +3,4 @@ __pycache__/
 model/
 *.pyc
 .vscode/
-.json
+joi_memory.json
