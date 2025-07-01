@@ -1,7 +1,5 @@
 # Project Joi - The AI Emotional Companion
 
-![Joi Demo](link_to_your_demo_gif_or_screenshot.png)
-
 Project Joi is a real-time, local-first AI emotional companion inspired by the character from *Blade Runner 2049*. Operating entirely offline on a standard laptop, Joi interacts through voice and visual perception. She analyzes the user's facial expressions to understand their emotional state and adapts her personality, dialogue, and tone in response. With a persistent memory, Joi remembers past conversations, creating a uniquely personal and evolving user experience.
 
 ---
