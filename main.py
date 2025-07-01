@@ -4,6 +4,9 @@ import threading
 import queue
 from joi_companion.core.speech_handler import SpeechHandler
 from joi_companion.core.vision_processor import VisionProcessor
+from joi_companion.core.personality_engine import PersonalityEngine
+from joi_companion.core.intent_parser import IntentParser
+
 
 MODEL_PATH = "model/vosk-model-small-en-us-0.15"
 WINDOW_WIDTH = 1280
@@ -27,13 +30,16 @@ def main():
     try:
         speech_handler = SpeechHandler(model_path=MODEL_PATH)
         vision_processor = VisionProcessor()
+        personality_engine = PersonalityEngine()
+        intent_parser = IntentParser()
         text_queue = queue.Queue()
 
         listen_thread = threading.Thread(target=speech_worker, args=(speech_handler, text_queue), daemon=True)
         listen_thread.start()
         
         print("System online. Joi is running.")
-        speech_handler.speak("I am now online and observing.")
+        initial_greeting = personality_engine.get_greeting()
+        speech_handler.speak(initial_greeting)
         
         current_emotion = "NEUTRAL"
         
@@ -46,12 +52,26 @@ def main():
             try:
                 user_input = text_queue.get_nowait()
                 print(f"> You: {user_input}")
-                if "goodbye" in user_input.lower():
+
+                intent = intent_parser.parse(user_input)
+                
+                response = ""
+
+                if intent["type"] == "CHANGE_PERSONALITY":
+                    new_mode = intent["payload"]
+                    response = personality_engine.set_mode(new_mode)
+                
+                elif intent["type"] == "EXIT":
                     speech_handler.speak("Goodbye. It was a pleasure.")
                     running = False
                     continue
+
+                elif intent["type"] == "CONVERSE":
+                    response = personality_engine.generate_response(current_emotion)
                 
-                response = f"You seem {current_emotion.lower()}."
+                else: 
+                    response = "I'm not sure what you mean by that."
+
                 print(f"< Joi: {response}")
                 speech_handler.speak(response)
             except queue.Empty:
@@ -72,11 +92,14 @@ def main():
             emotion_text = font.render(f"EMOTION: {current_emotion}", True, (255, 255, 255))
             screen.blit(emotion_text, (20, 20))
             
+            mode_text = font.render(f"MODE: {personality_engine.current_mode}", True, (255, 255, 255))
+            screen.blit(mode_text, (20, 70))
+            
             pygame.display.flip()
             clock.tick(30)
 
     except KeyboardInterrupt:
-        print("\nShutting down.")
+        print("\nShutdown initiated.")
     finally:
         if 'speech_handler' in locals():
             speech_handler.stop()
