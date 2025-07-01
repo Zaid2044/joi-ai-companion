@@ -6,6 +6,7 @@ from joi_companion.core.speech_handler import SpeechHandler
 from joi_companion.core.vision_processor import VisionProcessor
 from joi_companion.core.personality_engine import PersonalityEngine
 from joi_companion.core.intent_parser import IntentParser
+from joi_companion.core.memory_system import MemorySystem
 
 
 MODEL_PATH = "model/vosk-model-small-en-us-0.15"
@@ -23,7 +24,7 @@ def main():
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     pygame.display.set_caption("Joi - AI Companion")
     clock = pygame.time.Clock()
-    font = pygame.font.Font(None, 50)
+    font = pygame.font.Font(None, 40)
     
     cap = cv2.VideoCapture(0)
     
@@ -32,6 +33,7 @@ def main():
         vision_processor = VisionProcessor()
         personality_engine = PersonalityEngine()
         intent_parser = IntentParser()
+        memory = MemorySystem()
         text_queue = queue.Queue()
 
         listen_thread = threading.Thread(target=speech_worker, args=(speech_handler, text_queue), daemon=True)
@@ -56,24 +58,30 @@ def main():
                 intent = intent_parser.parse(user_input)
                 
                 response = ""
+                interaction_to_log = True
 
                 if intent["type"] == "CHANGE_PERSONALITY":
                     new_mode = intent["payload"]
                     response = personality_engine.set_mode(new_mode)
+                    interaction_to_log = False
                 
                 elif intent["type"] == "EXIT":
-                    speech_handler.speak("Goodbye. It was a pleasure.")
+                    response = "Goodbye. It was a pleasure."
+                    speech_handler.speak(response)
                     running = False
-                    continue
-
+                
                 elif intent["type"] == "CONVERSE":
                     response = personality_engine.generate_response(current_emotion)
                 
                 else: 
                     response = "I'm not sure what you mean by that."
+                
+                if response and running:
+                    print(f"< Joi: {response}")
+                    speech_handler.speak(response)
+                    if interaction_to_log:
+                        memory.log_interaction(user_input, response, current_emotion, personality_engine.current_mode)
 
-                print(f"< Joi: {response}")
-                speech_handler.speak(response)
             except queue.Empty:
                 pass
 
@@ -89,11 +97,20 @@ def main():
             
             screen.blit(frame_surface, (0, 0))
             
-            emotion_text = font.render(f"EMOTION: {current_emotion}", True, (255, 255, 255))
-            screen.blit(emotion_text, (20, 20))
+            ui_y = 20
+            ui_x = 20
             
+            emotion_text = font.render(f"EMOTION: {current_emotion}", True, (255, 255, 255))
+            screen.blit(emotion_text, (ui_x, ui_y))
+            
+            ui_y += 40
             mode_text = font.render(f"MODE: {personality_engine.current_mode}", True, (255, 255, 255))
-            screen.blit(mode_text, (20, 70))
+            screen.blit(mode_text, (ui_x, ui_y))
+            
+            ui_y += 40
+            interaction_count = memory.get_interaction_count()
+            memory_text = font.render(f"MEMORIES: {interaction_count}", True, (255, 255, 255))
+            screen.blit(memory_text, (ui_x, ui_y))
             
             pygame.display.flip()
             clock.tick(30)
@@ -105,6 +122,8 @@ def main():
             speech_handler.stop()
         if 'vision_processor' in locals():
             vision_processor.close()
+        if 'memory' in locals():
+            memory.close()
         cap.release()
         pygame.quit()
 

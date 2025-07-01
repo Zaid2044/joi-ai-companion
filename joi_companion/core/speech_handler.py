@@ -18,6 +18,8 @@ class SpeechHandler:
         self.tts_engine = pyttsx3.init()
         voices = self.tts_engine.getProperty('voices')
         self.tts_engine.setProperty('voice', voices[1].id)
+        self.tts_engine.setProperty('rate', 150)
+
 
     def speak(self, text):
         self.tts_engine.say(text)
@@ -30,6 +32,11 @@ class SpeechHandler:
                 result = self.recognizer.Result()
                 result_dict = json.loads(result)
                 return result_dict.get("text", "")
+            
+                if len(text.split()) > 1:
+                    return text
+                else:
+                    self.recognizer.Reset()
 
     def stop(self):
         self.stream.stop_stream()
