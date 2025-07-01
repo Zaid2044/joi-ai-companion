@@ -20,7 +20,8 @@ def main():
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     pygame.display.set_caption("Joi - AI Companion")
     clock = pygame.time.Clock()
-
+    font = pygame.font.Font(None, 50)
+    
     cap = cv2.VideoCapture(0)
     
     try:
@@ -32,7 +33,9 @@ def main():
         listen_thread.start()
         
         print("System online. Joi is running.")
-        speech_handler.speak("System online.")
+        speech_handler.speak("I am now online and observing.")
+        
+        current_emotion = "NEUTRAL"
         
         running = True
         while running:
@@ -44,11 +47,11 @@ def main():
                 user_input = text_queue.get_nowait()
                 print(f"> You: {user_input}")
                 if "goodbye" in user_input.lower():
-                    speech_handler.speak("Goodbye.")
+                    speech_handler.speak("Goodbye. It was a pleasure.")
                     running = False
                     continue
                 
-                response = f"I am observing you."
+                response = f"You seem {current_emotion.lower()}."
                 print(f"< Joi: {response}")
                 speech_handler.speak(response)
             except queue.Empty:
@@ -58,13 +61,16 @@ def main():
             if not success:
                 continue
 
-            processed_frame = vision_processor.process_frame(frame)
+            processed_frame, current_emotion = vision_processor.process_frame(frame)
             
             frame_rgb = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
             frame_flipped = cv2.flip(frame_rgb, 1)
             frame_surface = pygame.surfarray.make_surface(frame_flipped.swapaxes(0, 1))
             
             screen.blit(frame_surface, (0, 0))
+            
+            emotion_text = font.render(f"EMOTION: {current_emotion}", True, (255, 255, 255))
+            screen.blit(emotion_text, (20, 20))
             
             pygame.display.flip()
             clock.tick(30)
