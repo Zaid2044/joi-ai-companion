@@ -59,3 +59,28 @@ class PersonalityEngine:
         if self.current_mode in self.modes:
             return self.modes[self.current_mode]["GREETING"]
         return "Hello."
+    
+    def generate_recall_response(self, memory_system):
+        if memory_system.get_interaction_count() < 5:
+            return None
+
+        if random.random() < 0.25:
+            last_interaction = memory_system.get_random_interaction()
+            if last_interaction:
+                recalled_input = last_interaction.get('user_input', '')
+                recalled_emotion = last_interaction.get('user_emotion_at_time', 'neutral')
+                
+                if len(recalled_input.split()) > 2 and "personality" not in recalled_input:
+                    return f"I remember you seemed {recalled_emotion.lower()} when you mentioned '{recalled_input}'."
+        return None
+
+    def generate_response(self, user_emotion, memory_system=None):
+        if memory_system:
+            recall_response = self.generate_recall_response(memory_system)
+            if recall_response:
+                return recall_response
+        
+        emotion = user_emotion.upper()
+        if self.current_mode in self.modes and emotion in self.modes[self.current_mode]:
+            return random.choice(self.modes[self.current_mode][emotion])
+        return "I'm not sure how to respond to that."

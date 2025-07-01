@@ -73,7 +73,7 @@ def main():
                     response = "Goodbye. It was a pleasure."
                 
                 elif intent["type"] == "CONVERSE":
-                    response = personality_engine.generate_response(current_emotion)
+                    response = personality_engine.generate_response(current_emotion, memory_system=memory)
                 
                 else: 
                     response = "I'm not sure what you mean by that."

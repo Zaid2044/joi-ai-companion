@@ -1,5 +1,6 @@
 from tinydb import TinyDB, Query
 from datetime import datetime
+import random
 
 class MemorySystem:
     def __init__(self, db_path='joi_memory.json'):
@@ -15,10 +16,10 @@ class MemorySystem:
             'joi_mode_at_time': joi_mode
         })
 
-    def get_last_interaction(self):
+    def get_random_interaction(self):
         all_interactions = self.conversations.all()
         if all_interactions:
-            return all_interactions[-1]
+            return random.choice(all_interactions)
         return None
     
     def get_interaction_count(self):
